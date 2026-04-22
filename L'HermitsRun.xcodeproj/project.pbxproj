@@ -15,6 +15,11 @@
 		11F263492F98D69D007D4113 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 11F263472F98D69D007D4113 /* Main.storyboard */; };
 		11F2634B2F98D69E007D4113 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 11F2634A2F98D69E007D4113 /* Assets.xcassets */; };
 		11F2634E2F98D69E007D4113 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 11F2634C2F98D69E007D4113 /* LaunchScreen.storyboard */; };
+		11F263562F98E427007D4113 /* Card.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F263552F98E427007D4113 /* Card.swift */; };
+		11F263582F98E431007D4113 /* Deck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F263572F98E431007D4113 /* Deck.swift */; };
+		11F2635A2F98E438007D4113 /* Hermit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F263592F98E438007D4113 /* Hermit.swift */; };
+		11F2635D2F98E448007D4113 /* Board.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F2635C2F98E448007D4113 /* Board.swift */; };
+		11F263602F98E460007D4113 /* Enums.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11F2635F2F98E460007D4113 /* Enums.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +32,11 @@
 		11F263482F98D69D007D4113 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		11F2634A2F98D69E007D4113 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		11F2634D2F98D69E007D4113 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		11F263552F98E427007D4113 /* Card.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Card.swift; sourceTree = "<group>"; };
+		11F263572F98E431007D4113 /* Deck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
+		11F263592F98E438007D4113 /* Hermit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hermit.swift; sourceTree = "<group>"; };
+		11F2635C2F98E448007D4113 /* Board.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Board.swift; sourceTree = "<group>"; };
+		11F2635F2F98E460007D4113 /* Enums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Enums.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +69,7 @@
 		11F2633C2F98D69C007D4113 /* L'HermitsRun */ = {
 			isa = PBXGroup;
 			children = (
+				11F2635E2F98E453007D4113 /* Scripts */,
 				11F2633D2F98D69C007D4113 /* AppDelegate.swift */,
 				11F2633F2F98D69D007D4113 /* GameScene.sks */,
 				11F263412F98D69D007D4113 /* Actions.sks */,
@@ -69,6 +80,26 @@
 				11F2634C2F98D69E007D4113 /* LaunchScreen.storyboard */,
 			);
 			path = "L'HermitsRun";
+			sourceTree = "<group>";
+		};
+		11F263542F98E3EF007D4113 /* Classes */ = {
+			isa = PBXGroup;
+			children = (
+				11F263552F98E427007D4113 /* Card.swift */,
+				11F263572F98E431007D4113 /* Deck.swift */,
+				11F263592F98E438007D4113 /* Hermit.swift */,
+				11F2635C2F98E448007D4113 /* Board.swift */,
+			);
+			path = Classes;
+			sourceTree = "<group>";
+		};
+		11F2635E2F98E453007D4113 /* Scripts */ = {
+			isa = PBXGroup;
+			children = (
+				11F263542F98E3EF007D4113 /* Classes */,
+				11F2635F2F98E460007D4113 /* Enums.swift */,
+			);
+			path = Scripts;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -146,7 +177,12 @@
 			files = (
 				11F263442F98D69D007D4113 /* GameScene.swift in Sources */,
 				11F263462F98D69D007D4113 /* GameViewController.swift in Sources */,
+				11F263582F98E431007D4113 /* Deck.swift in Sources */,
 				11F2633E2F98D69C007D4113 /* AppDelegate.swift in Sources */,
+				11F2635D2F98E448007D4113 /* Board.swift in Sources */,
+				11F2635A2F98E438007D4113 /* Hermit.swift in Sources */,
+				11F263602F98E460007D4113 /* Enums.swift in Sources */,
+				11F263562F98E427007D4113 /* Card.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

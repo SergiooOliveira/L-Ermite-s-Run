@@ -7,14 +7,14 @@
 
 import Foundation
 
-enum Suit {
+enum Suit : CaseIterable {
     case spades
     case hearts
     case diamonds
     case clubs
 }
 
-enum Rank {
+enum Rank : CaseIterable {
     case ace
     case two, three, four, five, six, seven, eight, nine, ten
     case jack, queen, king
@@ -43,8 +43,6 @@ enum Rank {
             return 10
         case .jack, .queen, .king:
             return 11
-        default
-            return 0
         }
     }
 }

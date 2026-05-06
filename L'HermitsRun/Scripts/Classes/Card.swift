@@ -17,9 +17,37 @@ class Card {
         self.rank = rank
         self.suit = suit
     }
-
-    // extension Card: CustomStringConvertible {
-    // var description: String {
-    //     return "\(rank) (\(rank.value)) of \(suit)"
-    // }
+    
+    func triggerEffect() {
+        switch self.suit {
+        case .clubs:
+            // Trigger clubs
+            clubEffect(value: self.rank.value)
+        case .diamonds:
+            // Trigger diamond
+            diamondsEffect(value: self.rank.value)
+        case .hearts:
+            // Trigger hearts
+            heartsEffect(value: self.rank.value)
+        case .spades:
+            // Trigger spades
+            spadesEffect(value: self.rank.value)
+        }
+    }
+    
+    private func clubEffect(value: Int) {
+        // Armor
+    }
+    
+    private func diamondsEffect(value: Int) {
+        // Take damage
+    }
+    
+    private func heartsEffect(value: Int) {
+        // Heal
+    }
+    
+    private func spadesEffect(value: Int) {
+        // Damage
+    }
 }

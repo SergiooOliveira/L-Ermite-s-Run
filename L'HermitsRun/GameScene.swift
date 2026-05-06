@@ -10,9 +10,9 @@ import GameplayKit
 
 class GameScene: SKScene {
     
+    var deck : Deck = Deck()
     
     override func didMove(to view: SKView) {
-        
         
     }
     

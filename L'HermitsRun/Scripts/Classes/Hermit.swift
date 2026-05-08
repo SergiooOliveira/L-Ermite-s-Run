@@ -11,22 +11,24 @@ import Foundation
 class Hermit {
     
     var health: Int
+    var maxHealth: Int
     var armor: Int
     var damage: Int
     
     init(health: Int, armor: Int, damage: Int) {
         self.health = health
+        self.maxHealth = health
         self.armor = armor
         self.damage = damage
+        
+        var _ : Deck = Deck(hermit: self)
     }
 
-    /*
-    init(config: Int) {
-    }
-    */
+    /*init(modifier: Int) {
+        self.health
+    }*/
     
     func triggerCard(card: Card) {
-        card.triggerEffect()
-        
+        card.triggerEffect(hermit: self)
     }
 }

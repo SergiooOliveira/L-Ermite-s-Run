@@ -6,15 +6,18 @@
 //
 
 import Foundation
+import SpriteKit
 
 class Deck {
     
     var deck : [Card] = []
     let allSuits = Suit.allCases
     let hermit: Hermit
+    let cardSize: CGSize
     
-    init(hermit: Hermit) {
+    init(hermit: Hermit, cardSize: CGSize) {
         self.hermit = hermit
+        self.cardSize = cardSize
         
         CreateTier(ranks: [.two, .three, .four, .five])
         CreateTier(ranks: [.six, .seven, .eight, .nine, .ten])
@@ -33,7 +36,7 @@ class Deck {
         
         for r in ranks {
             for s in Suit.allCases {
-                let newCard = Card(rank: r, suit: s)
+                let newCard = Card(rank: r, suit: s, size: cardSize)
                 tempDeck.append(newCard)
             }
         }

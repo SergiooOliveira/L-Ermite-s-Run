@@ -46,3 +46,21 @@ enum Rank : CaseIterable {
         }
     }
 }
+
+extension Rank {
+    static func from(value: Int) -> Rank {
+        switch value {
+        case 1: return .ace
+        case 2: return .two
+        case 3: return .three
+        case 4: return .four
+        case 5: return .five
+        case 6: return .six
+        case 7: return .seven
+        case 8: return .eight
+        case 9: return .nine
+        case 10: return .ten
+        default: return .jack // Catches 11+
+        }
+    }
+}

@@ -46,7 +46,7 @@ class Card: SKSpriteNode {
         fatalError("init(coder:) has not been implemented")
     }
     
-    // MARK: - Visual Setup
+    // MARK: - Visuals
     private func setupVisuals() {
         let rankString = getRankString()
         
@@ -69,6 +69,12 @@ class Card: SKSpriteNode {
         case .king: return "K"
         default: return "\(rank.value)"
         }
+    }
+    
+    func updateRank(to newRank: Rank) {
+        self.rank = newRank
+        self.removeAllChildren()
+        self.setupVisuals()
     }
     
     // MARK: - Dragging Logic
@@ -132,23 +138,35 @@ class Card: SKSpriteNode {
             if let colName = node.name, (colName.hasPrefix("Middle_Col_") || colName.hasPrefix("Bottom_Col_")) && !colName.contains("_Card_") && colName != "Bottom_Col_1" {
                 targetSlotName = colName
             }
+            
             // 3. Did we hit another Card?
             else if let targetCard = node as? Card, targetCard != self {
                 targetSlotName = targetCard.currentSlotName
+                
+                // --- THE COMBAT INTERCEPTOR ---
+                let isFromHand = (self.currentSlotName == "Bottom_Col_0" || self.currentSlotName == "Bottom_Col_2")
+                let isAttackingEnemy = (self.suit == .spades && targetCard.suit == .clubs)
+                
+                if isFromHand && isAttackingEnemy {
+                    if let board = self.parent as? Board {
+                        
+                        // Pass a temporary memory of where the weapon started so it can snap back
+                        self.userData = ["startingPosition": startingPosition]
+                        
+                        successfulDrop = board.resolveCombat(attacker: self, defender: targetCard)
+                        if successfulDrop { break } // Stop looking, combat resolved!
+                    }
+                }
             }
             
             // 4. Validate and Execute the Drop!
             if let slotName = targetSlotName, let board = self.parent as? Board {
-                
+                            
                 if let bottomCard = board.getBottomCard(in: slotName), bottomCard.suit == .clubs {
-                    print("❌ Rule violation: Cannot drop on a Club!")
+                    print("❌ Rule violation: Cannot stack on a Club!")
                 } else {
-                    // Ask the Board to append it. If the column is full, it returns false and fails the drop!
                     successfulDrop = board.appendCard(self, toSlot: slotName)
-                    
-                    if successfulDrop {
-                        break // Everything worked, stop looking!
-                    }
+                    if successfulDrop { break }
                 }
             }
         }

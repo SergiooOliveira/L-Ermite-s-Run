@@ -22,7 +22,7 @@ class GameScene: SKScene {
         // For example, placing him in the top left corner:
         myHermit.position = CGPoint(x: 60, y: self.size.height - 60)
         myHermit.zPosition = 50
-        addChild(myHermit)
+        
         
         gameBoard = Board(size: self.size, hermit: myHermit)
         addChild(gameBoard)

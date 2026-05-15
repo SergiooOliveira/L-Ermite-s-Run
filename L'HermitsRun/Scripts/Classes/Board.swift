@@ -10,6 +10,7 @@ class Board: SKNode {
     
     var hermit: Hermit
     var gameDeck: Deck!
+    var moveCounter: Int = 0
     
     // Initialization
     init(size: CGSize, hermit: Hermit) {
@@ -33,6 +34,7 @@ class Board: SKNode {
         
         createBoardLayout()
         createButtonInTopCell()
+        placeHermitInBottomRow()
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -79,6 +81,15 @@ class Board: SKNode {
         }
     }
     
+    private func placeHermitInBottomRow() {
+        if let hermitSlot = self.childNode(withName: "Bottom_Col_1") as? SKSpriteNode {
+            hermit.position = CGPoint(x: hermitSlot.frame.midX, y: hermitSlot.frame.midY)
+            hermit.zPosition = 50
+            
+            self.addChild(hermit)
+        }
+    }
+    
     private func createButtonInTopCell() {
         if let topHeader = self.childNode(withName: "TopHeader") as? SKSpriteNode {
             let button = SKSpriteNode(color: .black, size: CGSize(width: 140, height: 44))
@@ -101,139 +112,227 @@ class Board: SKNode {
         }
     }
     
-    // MARK: - Game Mechanics
+    // MARK: - Universal Card Mechanics
+        
+    // Safely removes a card from its old column's memory
+    func removeFromOldSlot(_ card: Card) {
+        if card.currentSlotName != "" {
+            let oldCount = columnCounts[card.currentSlotName, default: 0]
+            if oldCount > 0 {
+                columnCounts[card.currentSlotName] = oldCount - 1
+            }
+            card.currentSlotName = ""
+        }
+    }
+
+    // Checks if a card is the absolute last one in its stack
+    func isLastCard(_ card: Card) -> Bool {
+        let count = columnCounts[card.currentSlotName, default: 0]
+        return card.name == "\(card.currentSlotName)_Card_\(count - 1)"
+    }
+
+    // Grabs the bottom-most card of any column (so we can check its Suit!)
+    func getBottomCard(in slotName: String) -> Card? {
+        let count = columnCounts[slotName, default: 0]
+        if count == 0 { return nil }
+        return self.childNode(withName: "\(slotName)_Card_\(count - 1)") as? Card
+    }
+
+    // The Router: Figures out where the card is going and hands it to the right function
+    /*func appendCard(_ card: Card, toSlot slotName: String) {
+        removeFromOldSlot(card) // Take it out of its old column
+        
+        if slotName.hasPrefix("Middle_Col_") {
+            dropOnMiddleColumn(card, slotName: slotName)
+        } else if slotName.hasPrefix("Bottom_Col_") {
+            appendToBottomRow(card, slotName: slotName)
+        }
+    }*/
     
-    func spawnCard(in targetColumn: SKSpriteNode, cardIndex: Int) {
-        guard !gameDeck.deck.isEmpty else {
-            print("The deck is empty!")
-            return
+    func appendCard(_ card: Card, toSlot slotName: String) -> Bool {
+        // --- NEW RULE: Enforce 4-card cap on manual drops ---
+        if slotName.hasPrefix("Middle_Col_") {
+            let count = columnCounts[slotName, default: 0]
+            if count >= 4 {
+                print("❌ Column is full! Cannot drop here.")
+                return false // Reject the drop!
+            }
+            
+            removeFromOldSlot(card)
+            dropOnMiddleColumn(card, slotName: slotName)
+            
+        } else if slotName.hasPrefix("Bottom_Col_") {
+            removeFromOldSlot(card)
+            appendToBottomRow(card, slotName: slotName)
+        } else {
+            return false
         }
         
-        let newCard = gameDeck.deck.removeFirst()
-        let finalCardHeight = newCard.size.height
-        
-        newCard.name = "\(targetColumn.name ?? "Col")_Card_\(cardIndex)"
-        
-        // --- FIX 1: THE Y-OFFSET MATH ---
-        // Instead of dividing empty space, we make every drop a satisfying 25% of the card's height!
-        let colHeight = targetColumn.frame.height
-        let yOffset = (colHeight - finalCardHeight) / 3.0
-        
-        let centerX = targetColumn.frame.midX
-        let startY = targetColumn.frame.maxY - (finalCardHeight / 2.0)
-        
-        newCard.position = CGPoint(x: centerX, y: startY - (CGFloat(cardIndex) * yOffset))
-        
-        // --- FIX 2: THE Z-POSITION ---
-        // The newest card (index 0) gets the highest number (20).
-        // As they get pushed down (index 1, 2, 3), their layer number gets lower so they tuck underneath!
-        newCard.zPosition = 20 - CGFloat(cardIndex)
-        
-        self.addChild(newCard)
+        // If we made it here, the move was completely successful
+        registerMove()
+        return true
     }
     
+    func registerMove() {
+        moveCounter += 1
+        print("Moves: \(moveCounter)/3")
+        
+        if moveCounter >= 3 {
+            moveCounter = 0
+            print("🃏 Auto-Dealing new row!")
+            
+            // Wait 0.3 seconds so the user's drop animation finishes before the new cards fly in
+            let wait = SKAction.wait(forDuration: 0.3)
+            let deal = SKAction.run { [weak self] in
+                self?.dealOneCardToAllColumns()
+            }
+            self.run(SKAction.sequence([wait, deal]))
+        }
+    }
+    
+    // Now, spawning a card just pulls it and hands it to the Master Mover!
+    func spawnCard(in targetColumn: SKSpriteNode) {
+        guard !gameDeck.deck.isEmpty else { return }
+        let newCard = gameDeck.deck.removeFirst()
+        self.addChild(newCard) // Ensure it physically exists
+        
+        // Send it straight to the Conveyor Belt!
+        dealConveyorToMiddleColumn(newCard, slotName: targetColumn.name ?? "")
+    }
+
     func dealOneCardToAllColumns() {
         for i in 0..<4 {
             let nodeName = "Middle_Col_\(i)"
             if let targetColumn = self.childNode(withName: nodeName) as? SKSpriteNode {
-                insertCardAtTop(in: targetColumn)
+                spawnCard(in: targetColumn)
             }
         }
     }
     
-    // MARK: - The Push-Down Mechanic
+    // MARK: - Zone Specific Handlers
         
-    func insertCardAtTop(in targetColumn: SKSpriteNode) {
-        let colName = targetColumn.name ?? "Col"
-        let currentCardCount = columnCounts[colName, default: 0]
+    private func dropOnMiddleColumn(_ card: Card, slotName: String) {
+        guard let slotNode = self.childNode(withName: slotName) as? SKSpriteNode else { return }
+        let count = columnCounts[slotName, default: 0]
         
-        if currentCardCount == 4 {
-            if let bottomCard = self.childNode(withName: "\(colName)_Card_3") {
-                let fadeOut = SKAction.fadeOut(withDuration: 0.2)
-                let remove = SKAction.removeFromParent()
-                bottomCard.run(SKAction.sequence([fadeOut, remove]))
+        card.name = "\(slotName)_Card_\(count)"
+        card.currentSlotName = slotName
+        
+        // Standard stacking math (adds to the bottom without shifting others)
+        let colHeight = slotNode.frame.height
+        let yOffset = (colHeight - card.size.height) / 3.0
+        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
+        let newY = startY - (CGFloat(count) * yOffset)
+        
+        let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: newY), duration: 0.2)
+        card.run(snap)
+        card.zPosition = 30 + CGFloat(count) // Render clearly on top
+        
+        columnCounts[slotName] = count + 1
+    }
+    
+    /*private func dealConveyorToMiddleColumn(_ card: Card, slotName: String) {
+        guard let slotNode = self.childNode(withName: slotName) as? SKSpriteNode else { return }
+        var count = columnCounts[slotName, default: 0]
+        
+        // 1. Cap at 4: Destroy the bottom card to make room
+        if count >= 4 {
+            if let bottomCard = self.childNode(withName: "\(slotName)_Card_3") as? Card {
+                let vanish = SKAction.sequence([SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()])
+                bottomCard.run(vanish)
             }
+            count = 3 // We successfully made room!
         }
         
-        // Match the massive 25% drop offset
-        let colHeight = targetColumn.frame.height
-                let cardWidth = targetColumn.frame.width * 0.85
-                let finalCardHeight = min(cardWidth * 1.4, colHeight * 0.9)
-                let yOffset = (colHeight - finalCardHeight) / 3.0
+        // 2. Shift existing cards DOWN
+        let colHeight = slotNode.frame.height
+        let yOffset = (colHeight - card.size.height) / 3.0
         
-        let topIndexToMove = min(currentCardCount - 1, 2)
-        
-        if topIndexToMove >= 0 {
-            for i in (0...topIndexToMove).reversed() {
-                if let card = self.childNode(withName: "\(colName)_Card_\(i)") {
-                    card.name = "\(colName)_Card_\(i + 1)"
-                    
+        if count > 0 {
+            for i in (0..<count).reversed() {
+                if let oldCard = self.childNode(withName: "\(slotName)_Card_\(i)") as? Card {
+                    oldCard.name = "\(slotName)_Card_\(i + 1)"
                     let moveDown = SKAction.moveBy(x: 0, y: -yOffset, duration: 0.2)
-                    card.run(moveDown)
-                    
-                    // The old cards tuck *underneath* the new top card
-                    card.zPosition = 20 - CGFloat(i + 1)
+                    oldCard.run(moveDown)
+                    oldCard.zPosition = 20 - CGFloat(i + 1) // Tuck underneath visually
                 }
             }
         }
         
-        let delay: TimeInterval = currentCardCount > 0 ? 0.2 : 0.0
-        let wait = SKAction.wait(forDuration: delay)
-        let spawnNew = SKAction.run {
-            self.spawnCard(in: targetColumn, cardIndex: 0)
-        }
-        self.run(SKAction.sequence([wait, spawnNew]))
+        // 3. Slot new card at the Top (Index 0)
+        card.name = "\(slotName)_Card_0"
+        card.currentSlotName = slotName
         
-        if currentCardCount < 4 {
-            columnCounts[colName] = currentCardCount + 1
-        }
+        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
+        let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: startY), duration: 0.2)
+        card.run(snap)
+        card.zPosition = 20 // Highest layer
+        
+        columnCounts[slotName] = count + 1
+    }*/
+    
+    private func appendToBottomRow(_ card: Card, slotName: String) {
+        guard let slotNode = self.childNode(withName: slotName) as? SKSpriteNode else { return }
+        let count = columnCounts[slotName, default: 0]
+        
+        card.name = "\(slotName)_Card_\(count)"
+        card.currentSlotName = slotName
+        
+        let yOffset = card.size.height / 3.0
+        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
+        let newY = startY - (CGFloat(count) * yOffset)
+        
+        let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: newY), duration: 0.2)
+        card.run(snap)
+        card.zPosition = 30 + CGFloat(count) // Render on top of the card below it
+        
+        columnCounts[slotName] = count + 1
     }
     
-    func receiveDroppedCard(_ droppedCard: Card, in targetColumn: SKSpriteNode) {
-        let colName = targetColumn.name ?? "Col"
-        let currentCardCount = columnCounts[colName, default: 0]
+    // MARK: - Conveyor Handler
         
-        if currentCardCount == 4 {
-            if let bottomCard = self.childNode(withName: "\(colName)_Card_3") {
-                let fadeOut = SKAction.fadeOut(withDuration: 0.2)
-                let remove = SKAction.removeFromParent()
-                bottomCard.run(SKAction.sequence([fadeOut, remove]))
+    private func dealConveyorToMiddleColumn(_ card: Card, slotName: String) {
+        guard let slotNode = self.childNode(withName: slotName) as? SKSpriteNode else { return }
+        var count = columnCounts[slotName, default: 0]
+        
+        // --- NEW RULE: Trigger effect when pushing off the bottom card! ---
+        if count >= 4 {
+            if let bottomCard = self.childNode(withName: "\(slotName)_Card_3") as? Card {
+                print("💥 Conveyor pushed off a card! Triggering effect.")
+                
+                // Damage/Heal the Hermit before it gets deleted!
+                self.hermit.triggerCard(card: bottomCard)
+                
+                let vanish = SKAction.sequence([SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()])
+                bottomCard.run(vanish)
             }
+            count = 3 // We successfully made room!
         }
         
-        // Match the massive 25% drop offset
-        let colHeight = targetColumn.frame.height
-                let finalCardHeight = droppedCard.size.height
-                let yOffset = (colHeight - finalCardHeight) / 3.0
+        // 2. Shift existing cards DOWN
+        let colHeight = slotNode.frame.height
+        let yOffset = (colHeight - card.size.height) / 3.0
         
-        let topIndexToMove = min(currentCardCount - 1, 2)
-        if topIndexToMove >= 0 {
-            for i in (0...topIndexToMove).reversed() {
-                if let card = self.childNode(withName: "\(colName)_Card_\(i)") {
-                    card.name = "\(colName)_Card_\(i + 1)"
-                    
+        if count > 0 {
+            for i in (0..<count).reversed() {
+                if let oldCard = self.childNode(withName: "\(slotName)_Card_\(i)") as? Card {
+                    oldCard.name = "\(slotName)_Card_\(i + 1)"
                     let moveDown = SKAction.moveBy(x: 0, y: -yOffset, duration: 0.2)
-                    card.run(moveDown)
-                    
-                    // The old cards tuck *underneath* the new top card
-                    card.zPosition = 20 - CGFloat(i + 1)
+                    oldCard.run(moveDown)
+                    oldCard.zPosition = 20 - CGFloat(i + 1)
                 }
             }
         }
         
-        droppedCard.name = "\(colName)_Card_0"
-        let centerX = targetColumn.frame.midX
-        let startY = targetColumn.frame.maxY - (finalCardHeight / 2.0)
+        // 3. Slot new card at the Top
+        card.name = "\(slotName)_Card_0"
+        card.currentSlotName = slotName
         
-        let snapToSpot = SKAction.move(to: CGPoint(x: centerX, y: startY), duration: 0.2)
-        droppedCard.run(snapToSpot)
+        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
+        let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: startY), duration: 0.2)
+        card.run(snap)
+        card.zPosition = 20
         
-        // The newly dropped card gets the highest layer
-        droppedCard.zPosition = 20
-        
-        if currentCardCount < 4 {
-            columnCounts[colName] = currentCardCount + 1
-        }
+        columnCounts[slotName] = count + 1
     }
-    
 }

@@ -268,7 +268,7 @@ class Card: SKSpriteNode {
     private func clubEffect(value: Int, hermit: Hermit) {
         // Take damage
         
-        hermit.TakeDamage(amount: value)
+        hermit.takeDamage(amount: value)
     }
     
     private func heartsEffect(value: Int, hermit: Hermit) {

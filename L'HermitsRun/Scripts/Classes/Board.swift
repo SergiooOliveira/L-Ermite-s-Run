@@ -30,7 +30,10 @@ class Board: SKNode {
         let colWidth = (size.width - (gap * 3)) / 4
         
         let cardWidth = colWidth * 0.85
-        let finalCardHeight = min(cardWidth * 1.4, middleHeight * 0.9)
+        
+        let singleCellHeight = middleHeight / 4.0
+        let maxSafeHeight = singleCellHeight * 0.90 // Guarantees a 10% gap between cards
+        let finalCardHeight = min(cardWidth * 1.4, maxSafeHeight)
         let calculatedCardSize = CGSize(width: cardWidth, height: finalCardHeight)
         
         // Build the Deck with the perfect size!
@@ -452,12 +455,19 @@ class Board: SKNode {
 
     // Safely removes a card from its old column's memory
     func removeFromOldSlot(_ card: Card) {
-        if card.currentSlotName != "" {
-            let oldCount = columnCounts[card.currentSlotName, default: 0]
+        let oldSlot = card.currentSlotName
+            
+        if oldSlot != "" {
+            let oldCount = columnCounts[oldSlot, default: 0]
             if oldCount > 0 {
-                columnCounts[card.currentSlotName] = oldCount - 1
+                columnCounts[oldSlot] = oldCount - 1
             }
             card.currentSlotName = ""
+            
+            // --- THE FIX: If pulled from the middle, collapse the gap! ---
+            if oldSlot.hasPrefix("Middle_Col_") {
+                collapseMiddleColumn(slotName: oldSlot)
+            }
         }
     }
 
@@ -476,16 +486,45 @@ class Board: SKNode {
     
     // Checks the hand slots and deletes dead cards if their time is up
     func tickCooldowns() {
-            for slot in ["Bottom_Col_0", "Bottom_Col_2"] {
-                if let card = getBottomCard(in: slot), card.isExhausted {
-                    card.movesUntilClear -= 1
-                    
-                    if card.movesUntilClear < 0 { // Time is up!
-                        print("💨 Cooldown finished. Clearing slot.")
-                        removeFromOldSlot(card)
-                        card.run(SKAction.sequence([SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()]))
-                    }
+        for slot in ["Bottom_Col_0", "Bottom_Col_2"] {
+            if let card = getBottomCard(in: slot), card.isExhausted {
+                card.movesUntilClear -= 1
+                
+                if card.movesUntilClear < 0 { // Time is up!
+                    print("💨 Cooldown finished. Clearing slot.")
+                    removeFromOldSlot(card)
+                    card.run(SKAction.sequence([SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()]))
                 }
             }
         }
+    }
+    
+    private func collapseMiddleColumn(slotName: String) {
+        guard let slotNode = self.childNode(withName: slotName) as? SKSpriteNode else { return }
+        
+        // 1. Find all cards still left in this column
+        var remainingCards: [Card] = []
+        for node in self.children {
+            if let c = node as? Card, c.currentSlotName == slotName {
+                remainingCards.append(c)
+            }
+        }
+        
+        // 2. Sort them physically from Top to Bottom
+        remainingCards.sort { $0.position.y > $1.position.y }
+        
+        let cellHeight = slotNode.size.height / 4.0
+        let slotCenterX = slotNode.position.x + (slotNode.size.width / 2.0)
+        let slotTopY = slotNode.position.y + slotNode.size.height
+        
+        // 3. Rename them 0, 1, 2... and snap them to their perfect grid slots
+        for (index, c) in remainingCards.enumerated() {
+            c.name = "\(slotName)_Card_\(index)"
+            
+            let newY = slotTopY - (cellHeight / 2.0) - (CGFloat(index) * cellHeight)
+            let snap = SKAction.move(to: CGPoint(x: slotCenterX, y: newY), duration: 0.2)
+            c.run(snap)
+            c.zPosition = 20 - CGFloat(index)
+        }
+    }
 }

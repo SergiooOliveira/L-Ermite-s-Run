@@ -20,6 +20,8 @@ class Card: SKSpriteNode {
     private var originalZPosition: CGFloat = 0
     private var startingPosition: CGPoint = .zero
     private var isDragging: Bool = false
+    var isExhausted: Bool = false
+    var movesUntilClear: Int = 0
     
     init(rank : Rank, suit : Suit, size: CGSize) {
         self.rank = rank
@@ -80,6 +82,11 @@ class Card: SKSpriteNode {
     // MARK: - Dragging Logic
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        guard !isExhausted else {
+            print("Card is on Cooldown")
+            return
+        }
+        
         guard let board = self.parent as? Board else { return }
         
         // --- RULE: Only the last card in a stack can be dragged! ---
@@ -115,59 +122,113 @@ class Card: SKSpriteNode {
         var successfulDrop = false
         
         for node in nodesUnderCard {
-                    
-            // 1. Did we drop on the Hermit?
-            if let hermitNode = node as? Hermit {
-                successfulDrop = true
-                triggerEffect(hermit: hermitNode)
-                hermitNode.updateVisuals()
+            // --- 0. Did we drop on the Top Row to Sell? ---
+            if node.name == "TopHeader" || node.name == "TopCellButton" || node.name == "TopCellButtonLabel" {
                 
-                if let board = self.parent as? Board {
-                    board.removeFromOldSlot(self)
-                    board.registerMove() // <--- Manually feeding the Hermit counts as a move!
+                if self.suit == .clubs {
+                    print("Cant sell enemies")
+                    break
                 }
                 
-                let vanish = SKAction.sequence([SKAction.scale(to: 0.1, duration: 0.2), SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()])
-                self.run(vanish)
-                break
+                if let board = self.parent as? Board {
+                    successfulDrop = board.sellCard(self)
+                    if successfulDrop { break }
+                }
+            }
+            
+            // --- 1. Did we drop on the Hermit? ---
+            if let _ = node as? Hermit, let board = self.parent as? Board {
+                let isFromHand = (self.currentSlotName == "Bottom_Col_0" || self.currentSlotName == "Bottom_Col_2")
+                
+                // A: Direct Enemy Attack (Clubs onto Hermit)
+                if self.suit == .clubs {
+                    successfulDrop = board.resolveDirectDamage(enemy: self)
+                }
+                // B: Healing (Hearts from Hand onto Hermit)
+                else if self.suit == .hearts && isFromHand {
+                    self.userData = ["startingPosition": startingPosition] // Remember hand slot so it snaps back
+                    successfulDrop = board.resolveHeal(healer: self)
+                }
+                // C: Fallback / Trashing other cards on the Hermit
+                else {
+                    print("Invalid interaction")
+                    break
+                }
+                
+                if successfulDrop { break } // Stop looking, Hermit handled it!
             }
             
             var targetSlotName: String? = nil
             
-            // 2. Did we hit ANY valid empty slot background?
+            // --- 2. Did we hit ANY valid empty slot background? ---
             if let colName = node.name, (colName.hasPrefix("Middle_Col_") || colName.hasPrefix("Bottom_Col_")) && !colName.contains("_Card_") && colName != "Bottom_Col_1" {
                 targetSlotName = colName
             }
             
-            // 3. Did we hit another Card?
+            // --- 3. Did we hit another Card? ---
             else if let targetCard = node as? Card, targetCard != self {
                 targetSlotName = targetCard.currentSlotName
                 
-                // --- THE COMBAT INTERCEPTOR ---
                 let isFromHand = (self.currentSlotName == "Bottom_Col_0" || self.currentSlotName == "Bottom_Col_2")
-                let isAttackingEnemy = (self.suit == .spades && targetCard.suit == .clubs)
+                let targetIsHand = (targetSlotName == "Bottom_Col_0" || targetSlotName == "Bottom_Col_2")
                 
-                if isFromHand && isAttackingEnemy {
-                    if let board = self.parent as? Board {
-                        
-                        // Pass a temporary memory of where the weapon started so it can snap back
+                if let board = self.parent as? Board {
+                    
+                    // Combat A: Spades (Weapon in Hand) vs Clubs (Enemy anywhere)
+                    if isFromHand && self.suit == .spades && targetCard.suit == .clubs {
                         self.userData = ["startingPosition": startingPosition]
-                        
                         successfulDrop = board.resolveCombat(attacker: self, defender: targetCard)
-                        if successfulDrop { break } // Stop looking, combat resolved!
+                        if successfulDrop { break }
+                    }
+                    
+                    // Combat B: Clubs (Enemy dragged) vs Diamonds (Armor in Hand)
+                    else if targetIsHand && self.suit == .clubs && targetCard.suit == .diamonds {
+                        successfulDrop = board.resolveArmorCombat(enemy: self, armor: targetCard)
+                        if successfulDrop { break }
                     }
                 }
             }
             
-            // 4. Validate and Execute the Drop!
+            // --- 4. Validate and Execute standard Drops! ---
             if let slotName = targetSlotName, let board = self.parent as? Board {
-                            
-                if let bottomCard = board.getBottomCard(in: slotName), bottomCard.suit == .clubs {
-                    print("❌ Rule violation: Cannot stack on a Club!")
-                } else {
-                    successfulDrop = board.appendCard(self, toSlot: slotName)
-                    if successfulDrop { break }
+                
+                let isOriginBottom = self.currentSlotName.hasPrefix("Bottom_Col_")
+                let isOriginHand = (self.currentSlotName == "Bottom_Col_0" || self.currentSlotName == "Bottom_Col_2")
+                
+                let isTargetMiddle = slotName.hasPrefix("Middle_Col_")
+                let isTargetHand = (slotName == "Bottom_Col_0" || slotName == "Bottom_Col_2")
+                let isTargetBackpack = (slotName == "Bottom_Col_3")
+                
+                // --- STRICT MOVEMENT RULES ---
+                
+                // Rule 1: No going back to the board
+                if isOriginBottom && isTargetMiddle {
+                    print("❌ Invalid: Cannot move cards from Hand/Backpack back to the Board!")
+                    break // Snaps back
                 }
+                
+                // Rule 2: No moving from Hand to Backpack
+                if isOriginHand && isTargetBackpack {
+                    print("❌ Invalid: Cards in the Hand cannot be moved to the Backpack!")
+                    break
+                }
+                
+                // Rule 3: No Clubs in the Hand
+                if self.suit == .clubs && isTargetHand {
+                    print("❌ Invalid: Clubs (Enemies) can never be placed in the Hand slots!")
+                    break
+                }
+                
+                // Rule 4: Cannot stack on top of a Club
+                if let bottomCard = board.getBottomCard(in: slotName), bottomCard.suit == .clubs {
+                    print("❌ Invalid: Cannot stack on top of a Club!")
+                    break
+                }
+                
+                // --- EXECUTE DROP ---
+                // If it survived all the rules above, the move is totally legal!
+                successfulDrop = board.appendCard(self, toSlot: slotName)
+                if successfulDrop { break }
             }
         }
         
@@ -195,40 +256,24 @@ class Card: SKSpriteNode {
         case .clubs:
             // Trigger clubs
             clubEffect(value: self.rank.value, hermit: hermit)
-        case .diamonds:
-            // Trigger diamond
-            diamondsEffect(value: self.rank.value, hermit: hermit)
         case .hearts:
             // Trigger hearts
             heartsEffect(value: self.rank.value, hermit: hermit)
-        case .spades:
+        case .spades, .diamonds:
             // Trigger spades
-            spadesEffect(value: self.rank.value, hermit: hermit)
+            break
         }
     }
     
     private func clubEffect(value: Int, hermit: Hermit) {
         // Take damage
         
-        hermit.health = max(0, hermit.health - value)
-        print("Hermit took \(value) to hp, new value: \(hermit.health)");
-    }
-    
-    private func diamondsEffect(value: Int, hermit: Hermit) {
-        // Armor
-        hermit.armor += value
-        print("Added \(value) to armor, new value: \(hermit.armor)");
+        hermit.TakeDamage(amount: value)
     }
     
     private func heartsEffect(value: Int, hermit: Hermit) {
         // Heal
-        hermit.health = min(hermit.maxHealth, hermit.health + value)
-        print("Healed \(value), new value: \(hermit.health)");
+        hermit.heal(amount: value)
     }
     
-    private func spadesEffect(value: Int, hermit: Hermit) {
-        // Damage
-        hermit.damage += value
-        print("Added \(value) to damage, new value: \(hermit.damage)");
-    }
 }

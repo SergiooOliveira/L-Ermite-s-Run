@@ -12,14 +12,12 @@ class Hermit: SKSpriteNode {
     
     var health: Int
     var maxHealth: Int
-    var armor: Int
-    var damage: Int
+    var gold: Int
     
-    init(health: Int, armor: Int, damage: Int, size: CGSize) {
+    init(health: Int, size: CGSize) {
         self.health = health
         self.maxHealth = health
-        self.armor = armor
-        self.damage = damage
+        self.gold = 0
         
         super.init(texture: nil, color: .purple, size: size)
         setupVisuals()
@@ -38,6 +36,7 @@ class Hermit: SKSpriteNode {
     private func setupVisuals() {
         // Add a simple text label so we know this is the Hermit
         let label = SKLabelNode(text: "HP: \(health)")
+        
         label.name = "HermitHPLabel"
         label.fontSize = 16
         label.fontName = "Helvetica-Bold"
@@ -52,5 +51,21 @@ class Hermit: SKSpriteNode {
         if let label = self.childNode(withName: "HermitHPLabel") as? SKLabelNode {
             label.text = "HP: \(health)"
         }
+    }
+    
+    // MARK: Helper Methods
+    func takeDamage(amount: Int) {
+        self.health = max(0, self.health - amount)
+        self.updateVisuals()
+    }
+    
+    func heal(amount: Int) {
+        self.health = min(self.maxHealth, self.health + amount)
+        self.updateVisuals()
+    }
+    
+    func addGold(amount: Int) {
+        self.gold += amount
+        self.updateVisuals()
     }
 }

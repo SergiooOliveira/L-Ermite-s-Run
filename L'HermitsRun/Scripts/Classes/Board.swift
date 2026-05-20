@@ -13,6 +13,7 @@ class Board: SKNode {
     var hermit: Hermit
     var gameDeck: Deck!
     var moveCounter: Int = 0
+    var goldLabel: SKLabelNode?
     
     // MARK: - Initialization
     
@@ -36,8 +37,9 @@ class Board: SKNode {
         self.gameDeck = Deck(hermit: self.hermit, cardSize: calculatedCardSize)
         
         createBoardLayout()
-        createButtonInTopCell()
         placeHermitInBottomRow()
+        createSellLabel()
+        setupInitialLayout()
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -45,6 +47,32 @@ class Board: SKNode {
     }
     
     // MARK: - Layout Generation
+    
+    private func setupInitialLayout() {
+        let startingDistribution = [1, 2, 3, 1]
+        var delay: TimeInterval = 0.0 // Start with no delay
+        
+        for (colIndex, count) in startingDistribution.enumerated() {
+            let nodeName = "Middle_Col_\(colIndex)"
+            
+            if let targetColumn = self.childNode(withName: nodeName) as? SKSpriteNode {
+                for _ in 0..<count {
+                    
+                    // Create a delayed action for each card
+                    let wait = SKAction.wait(forDuration: delay)
+                    let spawn = SKAction.run { [weak self] in
+                        self?.spawnCard(in: targetColumn)
+                    }
+                    
+                    // Run the sequence on the board
+                    self.run(SKAction.sequence([wait, spawn]))
+                    
+                    // Add 0.15 seconds to the clock for the NEXT card
+                    delay += 0.15
+                }
+            }
+        }
+    }
     
     private func createBoardLayout() {
         let screenWidth = boardSize.width
@@ -92,25 +120,24 @@ class Board: SKNode {
         }
     }
     
-    private func createButtonInTopCell() {
+    private func createSellLabel() {
         if let topHeader = self.childNode(withName: "TopHeader") as? SKSpriteNode {
-            let button = SKSpriteNode(color: .black, size: CGSize(width: 140, height: 44))
-            button.name = "TopCellButton"
-            button.zPosition = 10
+            let goldDisplay = SKLabelNode(text: "Gold: \(self.hermit.gold)")
+            goldDisplay.fontSize = 24
+            goldDisplay.fontName = "Helvetica-Bold"
+            goldDisplay.fontColor = .systemYellow
+            goldDisplay.horizontalAlignmentMode = .right
             
-            let headerCenterX = topHeader.frame.width / 2
-            let headerCenterY = topHeader.frame.height / 2
-            button.position = CGPoint(x: headerCenterX, y: headerCenterY)
+            // --- THE FIX: Calculate the right edge based on the center anchor ---
+            let rightEdgeX = topHeader.size.width - 20
             
-            let label = SKLabelNode(text: "Top Button")
-            label.fontSize = 18
-            label.fontName = "Helvetica-Bold"
-            label.fontColor = .white
-            label.verticalAlignmentMode = .center
-            label.name = "TopCellButtonLabel"
+            // Note: If you want it dead center vertically inside the header, Y should just be 0.
+            // If you still need your custom offset, just swap '0' back to 'headerCenterY - 8'
+            goldDisplay.position = CGPoint(x: rightEdgeX, y: 10)
+            goldDisplay.zPosition = 10
             
-            button.addChild(label)
-            topHeader.addChild(button)
+            topHeader.addChild(goldDisplay)
+            self.goldLabel = goldDisplay
         }
     }
     
@@ -137,12 +164,11 @@ class Board: SKNode {
             return false
         }
         
-        // If we made it here, the move was completely successful
-        registerMove()
         return true
     }
     
     func registerMove() {
+        tickCooldowns()
         moveCounter += 1
         print("Moves: \(moveCounter)/3")
         
@@ -157,6 +183,32 @@ class Board: SKNode {
             }
             self.run(SKAction.sequence([wait, deal]))
         }
+    }
+    
+    // MARK: - Economy
+        
+    func sellCard(_ card: Card) -> Bool {
+        let value = card.rank.value
+        
+        // 1. Give the actual data (money) to the Hermit
+        self.hermit.addGold(amount: value)
+        
+        // 2. Update the Global UI label on the Top Bar!
+        self.goldLabel?.text = "Gold: \(self.hermit.gold)"
+        
+        print("💰 Sold card for \(value) gold! Hermit total: \(self.hermit.gold)")
+        
+        removeFromOldSlot(card)
+        
+        // 3. Run the visual animation
+        if let header = self.childNode(withName: "TopHeader") {
+            let flyToTop = SKAction.move(to: CGPoint(x: header.frame.midX, y: header.frame.midY), duration: 0.2)
+            let vanish = SKAction.group([SKAction.scale(to: 0.1, duration: 0.2), SKAction.fadeOut(withDuration: 0.2)])
+            card.run(SKAction.sequence([flyToTop, vanish, SKAction.removeFromParent()]))
+        }
+        
+        registerMove()
+        return true
     }
     
     // MARK: - Spawning & Dealing
@@ -188,16 +240,22 @@ class Board: SKNode {
         card.name = "\(slotName)_Card_\(count)"
         card.currentSlotName = slotName
         
-        // Standard stacking math (adds to the bottom without shifting others)
-        let colHeight = slotNode.frame.height
-        let yOffset = (colHeight - card.size.height) / 3.0
-        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
-        let newY = startY - (CGFloat(count) * yOffset)
+        let slotCenterX = slotNode.position.x + (slotNode.size.width / 2.0)
+                
+        // --- 2. The Strict Vertical Grid ---
+        // Instead of using the card's height, we divide the column perfectly into 4 cells
+        let cellHeight = slotNode.size.height / 4.0
         
-        let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: newY), duration: 0.2)
+        // Find the absolute top of the column
+        let slotTopY = slotNode.position.y + slotNode.size.height
+        
+        // Start at the center of the top cell, and move down by one cellHeight per card
+        let newY = slotTopY - (cellHeight / 2.0) - (CGFloat(count) * cellHeight)
+        
+        let snap = SKAction.move(to: CGPoint(x: slotCenterX, y: newY), duration: 0.2)
         card.run(snap)
-        card.zPosition = 30 + CGFloat(count) // Render clearly on top
         
+        card.zPosition = 10 + CGFloat(count)
         columnCounts[slotName] = count + 1
     }
 
@@ -210,7 +268,7 @@ class Board: SKNode {
         
         let yOffset = card.size.height / 3.0
         let slotCenterY = slotNode.position.y + (slotNode.size.height / 2.0)
-        let slotCenterX = slotNode.position.x + (slotNode.size.width / 2.0)
+        let _ = slotNode.position.x + (slotNode.size.width / 2.0)
         
         let newY = slotCenterY - (CGFloat(count) * yOffset)
         
@@ -229,13 +287,15 @@ class Board: SKNode {
         guard let slotNode = self.childNode(withName: slotName) as? SKSpriteNode else { return }
         var count = columnCounts[slotName, default: 0]
         
-        // Trigger effect when pushing off the bottom card!
+        // --- 1. Trigger effect when pushing off the bottom card ---
         if count >= 4 {
             if let bottomCard = self.childNode(withName: "\(slotName)_Card_3") as? Card {
                 print("💥 Conveyor pushed off a card! Triggering effect.")
                 
-                // Damage/Heal the Hermit before it gets deleted!
-                self.hermit.triggerCard(card: bottomCard)
+                if (bottomCard.suit == .clubs) {
+                    // Make sure you use the updated encapsulation here if you renamed it!
+                    bottomCard.triggerEffect(hermit: self.hermit)
+                }
                 
                 let vanish = SKAction.sequence([SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()])
                 bottomCard.run(vanish)
@@ -243,27 +303,35 @@ class Board: SKNode {
             count = 3 // We successfully made room!
         }
         
-        // Shift existing cards DOWN
-        let colHeight = slotNode.frame.height
-        let yOffset = (colHeight - card.size.height) / 3.0
+        // --- THE FIX: Absolute Grid Math ---
+        // Force the card to the absolute horizontal center of the column
+        let slotCenterX = slotNode.position.x + (slotNode.size.width / 2.0)
         
+        // Divide the column perfectly into 4 cells, completely ignoring card size!
+        let cellHeight = slotNode.size.height / 4.0
+        
+        // --- 2. Shift existing cards DOWN ---
         if count > 0 {
             for i in (0..<count).reversed() {
                 if let oldCard = self.childNode(withName: "\(slotName)_Card_\(i)") as? Card {
                     oldCard.name = "\(slotName)_Card_\(i + 1)"
-                    let moveDown = SKAction.moveBy(x: 0, y: -yOffset, duration: 0.2)
+                    
+                    // Move down by exactly one grid cell
+                    let moveDown = SKAction.moveBy(x: 0, y: -cellHeight, duration: 0.2)
                     oldCard.run(moveDown)
                     oldCard.zPosition = 20 - CGFloat(i + 1)
                 }
             }
         }
         
-        // Slot new card at the Top
+        // --- 3. Slot new card at the Top ---
         card.name = "\(slotName)_Card_0"
         card.currentSlotName = slotName
         
-        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
-        let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: startY), duration: 0.2)
+        // Find the absolute center of the top cell
+        let startY = slotNode.position.y + slotNode.size.height - (cellHeight / 2.0)
+        
+        let snap = SKAction.move(to: CGPoint(x: slotCenterX, y: startY), duration: 0.2)
         card.run(snap)
         card.zPosition = 20
         
@@ -311,6 +379,75 @@ class Board: SKNode {
         return true
     }
 
+    // MARK: - Hearts Logic
+
+    func resolveHeal(healer: Card) -> Bool {
+        print("💚 Healing for \(healer.rank.value)!")
+        
+        healer.triggerEffect(hermit: self.hermit)
+        
+        // Exhaust the card instead of destroying it
+        healer.isExhausted = true
+        healer.movesUntilClear = 1 // It will survive exactly 1 more move
+        
+        // Turn it into a dead block (wipes visuals, makes it gray)
+        healer.removeAllChildren()
+        let deadVisual = SKSpriteNode(color: .darkGray, size: healer.size)
+        deadVisual.alpha = 0.8
+        healer.addChild(deadVisual)
+
+        // Snap it back to the hand slot to clog it
+        if let snapBackPos = healer.userData?["startingPosition"] as? CGPoint {
+            healer.run(SKAction.move(to: snapBackPos, duration: 0.2))
+        }
+
+        registerMove()
+        return true
+    }
+
+    func resolveArmorCombat(enemy: Card, armor: Card) -> Bool {
+        let enemyDamage = enemy.rank.value
+        let armorValue = armor.rank.value
+
+        let remainingArmor = armorValue - enemyDamage
+        let remainingDamage = enemyDamage - armorValue
+
+        // 1. Destroy the Enemy (It always dies when hitting armor)
+        removeFromOldSlot(enemy)
+        enemy.run(SKAction.sequence([SKAction.scale(to: 0.1, duration: 0.2), SKAction.removeFromParent()]))
+
+        // 2. Calculate Armor Survival
+        if remainingArmor <= 0 {
+            print("🛡️ Armor shattered!")
+            removeFromOldSlot(armor)
+            armor.run(SKAction.sequence([SKAction.scale(to: 0.1, duration: 0.2), SKAction.removeFromParent()]))
+        } else {
+            print("🛡️ Armor survives with \(remainingArmor) left!")
+            armor.updateRank(to: Rank.from(value: remainingArmor))
+        }
+
+        // 3. Overflow Damage hits Hermit
+        if remainingDamage > 0 {
+            print("💥 Overflow! Hermit takes \(remainingDamage) damage!")
+            self.hermit.takeDamage(amount: remainingDamage)
+        }
+
+        registerMove()
+        return true
+    }
+
+    func resolveDirectDamage(enemy: Card) -> Bool {
+        print("💥 Hermit takes \(enemy.rank.value) direct damage!")
+        
+        enemy.triggerEffect(hermit: self.hermit)
+        
+        removeFromOldSlot(enemy)
+        enemy.run(SKAction.sequence([SKAction.scale(to: 0.1, duration: 0.2), SKAction.removeFromParent()]))
+
+        registerMove()
+        return true
+    }
+
     // MARK: - Helper Functions
 
     // Safely removes a card from its old column's memory
@@ -336,4 +473,19 @@ class Board: SKNode {
         if count == 0 { return nil }
         return self.childNode(withName: "\(slotName)_Card_\(count - 1)") as? Card
     }
+    
+    // Checks the hand slots and deletes dead cards if their time is up
+    func tickCooldowns() {
+            for slot in ["Bottom_Col_0", "Bottom_Col_2"] {
+                if let card = getBottomCard(in: slot), card.isExhausted {
+                    card.movesUntilClear -= 1
+                    
+                    if card.movesUntilClear < 0 { // Time is up!
+                        print("💨 Cooldown finished. Clearing slot.")
+                        removeFromOldSlot(card)
+                        card.run(SKAction.sequence([SKAction.fadeOut(withDuration: 0.2), SKAction.removeFromParent()]))
+                    }
+                }
+            }
+        }
 }

@@ -52,7 +52,7 @@ class Board: SKNode {
     // MARK: - Layout Generation
     
     private func setupInitialLayout() {
-        let startingDistribution = [1, 2, 3, 1]
+        let startingDistribution = (0..<4).map { _ in Int.random(in: 1...3) }
         var delay: TimeInterval = 0.0 // Start with no delay
         
         for (colIndex, count) in startingDistribution.enumerated() {
@@ -185,7 +185,6 @@ class Board: SKNode {
             moveCounter = 0
             print("🃏 Auto-Dealing new row!")
             
-            // Wait 0.3 seconds so the user's drop animation finishes before the new cards fly in
             let wait = SKAction.wait(forDuration: 0.3)
             let deal = SKAction.run { [weak self] in
                 self?.dealOneCardToAllColumns()
@@ -193,6 +192,30 @@ class Board: SKNode {
                 self?.revealBottomCards()
             }
             self.run(SKAction.sequence([wait, deal]))
+        }
+        
+        checkWinCondition()
+    }
+    
+    private func checkWinCondition() {
+        // 1. Check if the deck has cards left
+        guard gameDeck.deck.isEmpty else { return }
+        
+        // 2. Sum up all the remaining cards currently sitting in the columns
+        var totalMiddleCards = 0
+        for i in 0..<4 {
+            totalMiddleCards += columnCounts["Middle_Col_\(i)", default: 0]
+        }
+        
+        if totalMiddleCards == 0 {
+            print("🏆 VICTORY! Board is completely clear.")
+            
+            // 3. Transition to the GameOverScene and pass the Hermit's gold!
+            if let view = self.scene?.view, let sceneSize = self.scene?.size {
+                let winScene = GameOverScene(size: sceneSize, score: self.hermit.gold)
+                winScene.scaleMode = .aspectFill
+                view.presentScene(winScene, transition: SKTransition.crossFade(withDuration: 1.0))
+            }
         }
     }
     

@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		11756C1A2FC04B5D006EE340 /* MainMenuScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11756C192FC04B5D006EE340 /* MainMenuScene.swift */; };
 		11756C1C2FC05352006EE340 /* RulesScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11756C1B2FC05352006EE340 /* RulesScene.swift */; };
+		11756C1E2FC05759006EE340 /* GameOverScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11756C1D2FC05759006EE340 /* GameOverScene.swift */; };
 		11E977862FADD55700A72444 /* Deck.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E977852FADD55700A72444 /* Deck.swift */; };
 		11E977882FADDB6500A72444 /* MainLayoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11E977872FADDB6500A72444 /* MainLayoutView.swift */; };
 		11EA23262FAB5466004B6A70 /* Extensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11EA23252FAB5466004B6A70 /* Extensions.swift */; };
@@ -28,6 +29,7 @@
 /* Begin PBXFileReference section */
 		11756C192FC04B5D006EE340 /* MainMenuScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainMenuScene.swift; sourceTree = "<group>"; };
 		11756C1B2FC05352006EE340 /* RulesScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RulesScene.swift; sourceTree = "<group>"; };
+		11756C1D2FC05759006EE340 /* GameOverScene.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameOverScene.swift; sourceTree = "<group>"; };
 		11E977852FADD55700A72444 /* Deck.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Deck.swift; sourceTree = "<group>"; };
 		11E977872FADDB6500A72444 /* MainLayoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainLayoutView.swift; sourceTree = "<group>"; };
 		11EA23252FAB5466004B6A70 /* Extensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Extensions.swift; sourceTree = "<group>"; };
@@ -86,6 +88,7 @@
 				11E977872FADDB6500A72444 /* MainLayoutView.swift */,
 				11756C192FC04B5D006EE340 /* MainMenuScene.swift */,
 				11756C1B2FC05352006EE340 /* RulesScene.swift */,
+				11756C1D2FC05759006EE340 /* GameOverScene.swift */,
 			);
 			path = "L'HermitsRun";
 			sourceTree = "<group>";
@@ -191,6 +194,7 @@
 				11F263462F98D69D007D4113 /* GameViewController.swift in Sources */,
 				11F2633E2F98D69C007D4113 /* AppDelegate.swift in Sources */,
 				11F2635D2F98E448007D4113 /* Board.swift in Sources */,
+				11756C1E2FC05759006EE340 /* GameOverScene.swift in Sources */,
 				11F2635A2F98E438007D4113 /* Hermit.swift in Sources */,
 				11E977882FADDB6500A72444 /* MainLayoutView.swift in Sources */,
 				11F263602F98E460007D4113 /* Enums.swift in Sources */,

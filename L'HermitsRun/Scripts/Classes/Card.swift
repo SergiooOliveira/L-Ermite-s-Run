@@ -130,11 +130,17 @@ class Card: SKSpriteNode {
         var successfulDrop = false
         
         for node in nodesUnderCard {
-            // --- 0. Did we drop on the Top Row to Sell? ---
+            // --- Did we drop on the Top Row to Sell? ---
             if node.name == "TopHeader" || node.name == "TopCellButton" || node.name == "TopCellButtonLabel" {
                 
                 if self.suit == .clubs {
                     print("Cant sell enemies")
+                    break
+                }
+                
+                // --- Can't sell from hand/backpack ---
+                if self.currentSlotName.hasPrefix("Bottom_Col_") {
+                    print("❌ Invalid: Cannot sell cards directly from the Hand or Backpack!")
                     break
                 }
                 
@@ -144,7 +150,7 @@ class Card: SKSpriteNode {
                 }
             }
             
-            // --- 1. Did we drop on the Hermit? ---
+            // --- Did we drop on the Hermit? ---
             if let _ = node as? Hermit, let board = self.parent as? Board {
                 let isFromHand = (self.currentSlotName == "Bottom_Col_0" || self.currentSlotName == "Bottom_Col_2")
                 
@@ -233,13 +239,18 @@ class Card: SKSpriteNode {
                     break
                 }
                 
+                if self.currentSlotName == slotName {
+                    print("Card returned to its own column")
+                    break
+                }
+                
                 // --- EXECUTE DROP ---
                 // If it survived all the rules above, the move is totally legal!
                 successfulDrop = board.appendCard(self, toSlot: slotName)
                 if successfulDrop { break }
             }
         }
-        
+
         // 5. The Failsafe
         if !successfulDrop {
             let snapBack = SKAction.move(to: startingPosition, duration: 0.2)

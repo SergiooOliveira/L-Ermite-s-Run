@@ -16,7 +16,7 @@ class GameScene: SKScene {
         self.anchorPoint = .zero
         
         let hermitSize = CGSize(width: 80, height: 80)
-        let myHermit = Hermit(health: 100, size: hermitSize)
+        let myHermit = Hermit(health: 20, size: hermitSize)
         
         // (Optional) Position the Hermit somewhere on the screen so you can see him!
         // For example, placing him in the top left corner:

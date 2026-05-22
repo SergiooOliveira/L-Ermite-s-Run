@@ -19,16 +19,9 @@ class Deck {
         self.hermit = hermit
         self.cardSize = cardSize
         
-        CreateTier(ranks: [.two, .three, .four, .five])
-        CreateTier(ranks: [.six, .seven, .eight, .nine, .ten])
-        CreateTier(ranks: [.jack, .queen, .king, .ace])
-        
-        //PrintTier()
-        /*
-        print("Hermit values:")
-        print("HP: \(hermit.health)")
-        print("Armor: \(hermit.armor)")
-        print("Damage: \(hermit.damage)")*/
+        CreateTier(ranks: [.ace, .two, .three, .four])
+        CreateTier(ranks: [.five, .six, .seven, .eight, .nine])
+        CreateTier(ranks: [.ten, .jack, .queen, .king])
     }
 
     func CreateTier(ranks: [Rank]) {

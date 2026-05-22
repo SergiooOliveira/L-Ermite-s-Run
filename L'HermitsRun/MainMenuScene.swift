@@ -20,6 +20,18 @@ class MainMenuScene: SKScene {
         titleLabel.position = CGPoint(x: size.width / 2, y: size.height * 0.7)
         addChild(titleLabel)
         
+        // --- Display High Score ---
+        let highScore = UserDefaults.standard.integer(forKey: "HighestScore")
+        
+        let highScoreLabel = SKLabelNode(text: "Best Run: \(highScore) Gold")
+        highScoreLabel.fontName = "Helvetica-Bold"
+        highScoreLabel.fontSize = 20
+        highScoreLabel.fontColor = .systemYellow
+        
+        // Placed perfectly between the 0.7 Title and 0.45 Play Button
+        highScoreLabel.position = CGPoint(x: size.width / 2, y: size.height * 0.58)
+        addChild(highScoreLabel)
+        
         // --- The Play Button ---
         let playButton = SKSpriteNode(color: .systemGreen, size: CGSize(width: 200, height: 60))
         playButton.name = "PlayButton"

@@ -75,6 +75,12 @@ class Board: SKNode {
                 }
             }
         }
+        
+        let finalWait = SKAction.wait(forDuration: delay + 0.2)
+        let reveal = SKAction.run { [weak self] in
+            self?.revealBottomCards()
+        }
+        self.run(SKAction.sequence([finalWait, reveal]))
     }
     
     private func createBoardLayout() {
@@ -183,6 +189,8 @@ class Board: SKNode {
             let wait = SKAction.wait(forDuration: 0.3)
             let deal = SKAction.run { [weak self] in
                 self?.dealOneCardToAllColumns()
+                
+                self?.revealBottomCards()
             }
             self.run(SKAction.sequence([wait, deal]))
         }
@@ -274,11 +282,7 @@ class Board: SKNode {
         let _ = slotNode.position.x + (slotNode.size.width / 2.0)
         
         let newY = slotCenterY - (CGFloat(count) * yOffset)
-        
-        /*
-        let startY = slotNode.frame.maxY - (card.size.height / 2.0)
-        let newY = startY - (CGFloat(count) * yOffset)
-        */
+
         let snap = SKAction.move(to: CGPoint(x: slotNode.frame.midX, y: newY), duration: 0.2)
         card.run(snap)
         card.zPosition = 30 + CGFloat(count) // Render on top of the card below it
@@ -320,7 +324,9 @@ class Board: SKNode {
                     oldCard.name = "\(slotName)_Card_\(i + 1)"
                     
                     // Move down by exactly one grid cell
-                    let moveDown = SKAction.moveBy(x: 0, y: -cellHeight, duration: 0.2)
+                    let targetY = (slotNode.position.y + slotNode.size.height) - (cellHeight / 2.0) - (CGFloat(i + 1) * cellHeight)
+                    let moveDown = SKAction.move(to: CGPoint(x: slotCenterX, y: targetY), duration: 0.2)
+                    
                     oldCard.run(moveDown)
                     oldCard.zPosition = 20 - CGFloat(i + 1)
                 }
@@ -468,6 +474,8 @@ class Board: SKNode {
             if oldSlot.hasPrefix("Middle_Col_") {
                 collapseMiddleColumn(slotName: oldSlot)
             }
+            
+            revealBottomCards()
         }
     }
 
@@ -525,6 +533,16 @@ class Board: SKNode {
             let snap = SKAction.move(to: CGPoint(x: slotCenterX, y: newY), duration: 0.2)
             c.run(snap)
             c.zPosition = 20 - CGFloat(index)
+        }
+    }
+    
+    // Flips the lowest card in every column face-up
+    func revealBottomCards() {
+        for i in 0..<4 {
+            let slotName = "Middle_Col_\(i)"
+            if let bottomCard = getBottomCard(in: slotName) {
+                bottomCard.isFaceUp = true
+            }
         }
     }
 }

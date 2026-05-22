@@ -12,8 +12,11 @@ class Card: SKSpriteNode {
     
     var rank : Rank
     var suit : Suit
-    var isFaceUp: Bool = false
     var currentSlotName: String = ""
+    var displayLabel: SKLabelNode!
+    var isFaceUp: Bool = false {
+        didSet { updateVisuals() }
+    }
 
     // MARK: - Dragging Properties
     private var touchOffset: CGPoint = .zero
@@ -27,21 +30,29 @@ class Card: SKSpriteNode {
         self.rank = rank
         self.suit = suit
         
-        let cardColor: UIColor
-        switch suit {
-        case .spades:   cardColor = .black
-        case .hearts:   cardColor = .red
-        case .clubs:    cardColor = .green
-        case .diamonds: cardColor = UIColor(red: 0.68, green: 0.85, blue: 0.90, alpha: 1.0) // Light blue
-        }
-        
         // Initialize the SKSpriteNode under the hood
-        super.init(texture: nil, color: cardColor, size: size)
+        super.init(texture: nil, color: .white, size: size)
         
         // CRITICAL: Let SpriteKit know this node can be tapped/dragged
         self.isUserInteractionEnabled = true
         
-        setupVisuals()
+        // 2. Add a clean black border
+        let border = SKShapeNode(rectOf: size, cornerRadius: 6.0)
+        border.strokeColor = .black
+        border.lineWidth = 2.0
+        self.addChild(border)
+        
+        // 3. Create the Emoji Text
+        let rankString = getRankString()
+        displayLabel = SKLabelNode(text: "\(suit.emoji) \(rankString)")
+        displayLabel.fontName = "Helvetica-Bold"
+        displayLabel.fontSize = size.width * 0.30
+        displayLabel.fontColor = suit.displayColor
+        displayLabel.verticalAlignmentMode = .center
+        displayLabel.zPosition = 1
+        
+        self.addChild(displayLabel)
+        updateVisuals()
     }
     
     required init?(coder aDecoder: NSCoder) {
@@ -49,34 +60,31 @@ class Card: SKSpriteNode {
     }
     
     // MARK: - Visuals
-    private func setupVisuals() {
-        let rankString = getRankString()
-        
-        let label = SKLabelNode(text: "\(rankString) \(suit)")
-        label.fontSize = 16
-        label.fontName = "Helvetica-Bold"
-        // Black text on diamonds/clubs so it's readable
-        label.fontColor = (suit == .diamonds || suit == .clubs) ? .black : .white
-        label.verticalAlignmentMode = .center
-        label.zPosition = 1
-        
-        addChild(label)
+    private func updateVisuals() {
+        self.color = isFaceUp ? .white : .black
+        self.displayLabel.isHidden = !isFaceUp
     }
     
     private func getRankString() -> String {
         switch rank {
-        case .ace: return "A"
-        case .jack: return "J"
-        case .queen: return "Q"
-        case .king: return "K"
-        default: return "\(rank.value)"
+            case .ace: return "A"
+            case .jack: return "J"
+            case .queen: return "Q"
+            case .king: return "K"
+            default: return "\(rank.value)"
         }
     }
     
     func updateRank(to newRank: Rank) {
         self.rank = newRank
-        self.removeAllChildren()
-        self.setupVisuals()
+        self.displayLabel.text = "\(self.suit.emoji) \(getRankString())"
+        
+        // A satisfying little pop animation when a stat changes
+        let pop = SKAction.sequence([
+            SKAction.scale(to: 1.2, duration: 0.1),
+            SKAction.scale(to: 1.0, duration: 0.1)
+        ])
+        self.displayLabel.run(pop)
     }
     
     // MARK: - Dragging Logic
